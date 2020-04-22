@@ -16,35 +16,34 @@ describe "User Sign In Scenario" do
     # Maximize the window of browser
     @driver.manage.window.maximize
     # Implicit wait
-    @driver.manage.timeouts.implicit_wait = 80
+    #@driver.manage.timeouts.implicit_wait = 80
   end
 
   context "Sign in with valid data" do      
     CSV.foreach("../rspec/users.csv", {headers: true, header_converters: :symbol}) do |row|
       it "User #{row[:username]} signed in successfully" do
         CSV.open("../rspec/report.csv", "a") do |csv|
-          csv << ["s.no", "username","password", "login_step", "applications_list_step", "application_show_step"] if row[:serial]=='1'          
+          csv << ["serial", "username","password", "login_step", "applications_list_step", "application_show_step"] if row[:serial]=='1'          
           @driver.get(@base_url + "/login")
           sleep 10
+
           @driver.find_element(name: 'email').send_keys row[:username]
           @driver.find_element(name: 'password').send_keys row[:password]
           @driver.find_element(class: "button-actions").find_element(tag_name: 'input').submit();
           sleep 10
-          row[:login_step] = @driver.current_url == "#{@base_url}/role" ? 'P' : 'F'
+          row[:login_step] = @driver.current_url == "#{@base_url}/role" || "#{@base_url}/TacobellTestPrivatemarketPlace" ? 'P' : 'F'
           
-          csv << row if row[:login_step]=='F'
+          @driver.find_elements(:xpath, "//button")[-1].click rescue nil
+          sleep 5
+          application_list_page_heading   =  @driver.find_elements(tag_name: "h3")[0].text rescue nil
+          row[:applications_list_step]    =  application_list_page_heading && application_list_page_heading.include?("Welcome Back") ?    'P' : 'F'
 
-          @driver.find_elements(:xpath, "//button")[-1].click
-          application_list_page_heading   =  @driver.find_elements(tag_name: "h3")[0].text
-          row[:applications_list_step]    =  application_list_page_heading.include?("Welcome Back") ?    'P' : 'F'
+          @driver.find_element(:xpath, "//tbody//td//a").click rescue nil
+          sleep 5
+          application_show_page_heading =  @driver.find_elements(tag_name:"h3")[0].text rescue nil
+          row[:application_show_step]   =  application_show_page_heading && application_show_page_heading.include?("Scoring Instructions") ? 'P' : 'F'
 
-          csv << row if row[:applications_list_step]=='F'
-
-          @driver.find_element(:xpath, "//tbody//td//a").click
-          application_show_page_heading =  @driver.find_elements(tag_name:"h3")[0].text
-          row[:application_show_step]   =  application_show_page_heading.include?("Scoring Instructions") ? 'P' : 'F'
-
-          csv << row
+          csv << row 
 
         end   
       end
@@ -56,7 +55,7 @@ describe "User Sign In Scenario" do
   end
 
   after(:all) do
-    File.rename("report.csv", "report-#{Time.now.strftime("%d-%m-%y")}.csv")
+    File.rename("report.csv", "report-#{Time.now.strftime("%d-%m-%y-%s")}.csv")
   end
 
 end
